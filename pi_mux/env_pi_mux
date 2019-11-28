@@ -1,0 +1,63 @@
+#!/bin/bash
+#-----------------------------------------------------------------------
+# Initialize paths.
+top_dir=$HOME
+
+log_dir="${top_dir}/log"
+if [[ ! -d $log_dir ]];then
+    mkdir $log_dir
+fi
+export LOG_DIR="$log_dir"
+#echo $LOG_DIR
+ENV_STR=' LOG_DIR '
+
+#pm_dir="${top_dir}"/src/git/Pi_Mux
+pm_dir="${top_dir}"/src/git/Pi_Mux/pi_mux
+export PM_DIR="$pm_dir"
+#echo $PM_DIR
+ENV_STR="$ENV_STR PM_DIR"
+
+pm_data_dir="${pm_dir}"/appdata
+if [[ ! -d $pm_data_dir ]];then
+    mkdir $pm_data_dir
+fi
+export PM_DATA_DIR="$pm_data_dir"
+#echo $PM_DATA_DIR
+ENV_STR="$ENV_STR PM_DATA_DIR"
+
+pm_db_dir="${pm_data_dir}"/db
+if [[ ! -d $pm_db_dir ]];then
+    mkdir $pm_db_dir
+fi
+export PM_DB_DIR="$pm_db_dir"
+#echo $PM_DB_DIR
+ENV_STR="$ENV_STR PM_DB_DIR"
+
+pm_hist_dir="${pm_data_dir}"/hist
+if [[ ! -d $pm_hist_dir ]];then
+    mkdir $pm_hist_dir
+fi
+export PM_HIST_DIR="$pm_hist_dir"
+#echo $PM_HIST_DIR
+ENV_STR="$ENV_STR PM_HIST_DIR"
+
+pm_hist_file="${pm_hist_dir}"/"${USER}".hist
+export PM_HIST_FILE="$pm_hist_file"
+#echo $PM_HIST_FILE
+ENV_STR="$ENV_STR PM_HIST_FILE"
+
+tmp_dir="${top_dir}"/tmp
+if [[ ! -d $tmp_dir ]];then
+    mkdir $tmp_dir
+fi
+export TMP_DIR="$tmp_dir"
+#echo $TMP_DIR
+ENV_STR="$ENV_STR TMP_DIR"
+
+now=$(date +%Y%m%d%H%M%S)
+sess=${USER}_${now}
+export PM_SESS="$sess"
+#echo $PM_SESS
+PM_ENV_STR="$ENV_STR PM_SESS"
+export PM_ENV_STR="'${PM_ENV_STR}'"
+#echo
