@@ -1,17 +1,14 @@
-#!/usr/bin/python2
+#!/usr/bin/python3
 #-----------------------------------------------------------------------
-import logging
-import logging.handlers
-import os
-import sys
 import threading
 import time
 #---------------------------------------
+import os
+import sys
+sess = os.environ['CURR_TM_SESS']
 sys.path.insert(1, os.environ['PM_DIR'])
 import tm
 import util
-#---------------------------------------
-user = os.environ['USER']
 #---------------------------------------
 # Initialize paths.
 log_dir = os.environ['LOG_DIR']
@@ -21,6 +18,9 @@ tmp_dir = os.environ['TMP_DIR']
 #---------------------------------------
 # LOGGING CONFIG
 #---------------------------------------
+import logging
+import logging.handlers
+user = os.environ['USER']
 # application log file
 app_log_format = logging.Formatter('%(asctime)s [%(levelname)-8s] %(threadName)s:%(filename)s\n%(message)s\n')
 log = logging.getLogger()
@@ -61,27 +61,6 @@ fh_hist.setFormatter(hist_format)
 hist.addHandler(fh_hist)
 '''
 #=======================================================================
-sess = os.environ['PM_SESS']
-threads = []
-cmd = "new-window -t " + sess + " -d -n top"
-t = threading.Thread(target=tm.tmx, args=([cmd]), name='top')
-threads.append(t)
-t.start()
-hosts = ['pi1', 'pi2', 'pi3']
-for i in hosts:
-    dbg.info("host:" + i)
-    dbg.info('t = threading.Thread(target=tm.console, args=(i, "pi"))')
-    t = threading.Thread(target=tm.console, args=(i, "pi"), name=i)
-    dbg.info("t:" + str(t))
-    dbg.info("threads.append(t)")
-    threads.append(t)
-    dbg.info("t.start()")
-    t.start()
-    time.sleep(0.05)
-    tm.sendk(sess + ":" + i + ".0", "clear")
-
-tm.tmx("select-window -t " + sess + ":top")
-
-for thread in threading.enumerate():
-    dbg.debug("thread started:" + thread.name)
-
+d_hosts = {'pi1':'pi', 'pi2':'pi', 'pi3':'pi'}
+tm.multi_rlogin(d_hosts)
+# EOF

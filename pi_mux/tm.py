@@ -1,18 +1,29 @@
-#!/usr/bin/python2
+#!/usr/bin/python3
 #=======================================================================
-import collections
-import logging
 import os
+import sys
+import collections
 import re
 import shlex
 import subprocess
-import sys
 import tempfile
+import threading
+import time
+import logging
 log = logging.getLogger(__name__)
 dbg = logging.getLogger('dbg.' + __name__)
+#-----------------------------------------------------------------------
+sys.path.insert(1, os.environ['PM_DIR'])
+import util
 #=======================================================================
-def sendk(targ, cmd):
-    run = 'tmux send-keys -t ' + targ + ' "' + cmd + '" C-m'
+def sendk(targ, cmd=None):
+    # This block allows targ to be missing without having to refactor
+    # a bunch of previously written code to swap parameter positions.
+    if cmd is None:
+        run = 'tmux send-keys "' + targ + '" C-m'
+    else:
+        run = 'tmux send-keys -t ' + targ + ' "' + cmd + '" C-m'
+
     dbg.info('run:' + run)
     try:
         os.system(run)
@@ -24,6 +35,40 @@ def sendk(targ, cmd):
         return(0)
 # END def sendk
 #-----------------------------------------------------------------------
+def capture_pane(pane_id):
+    tmx('select-pane -t ' + pane_id)
+    tmx('capture-pane -S - -E -')
+    f_pane = os.path.join(os.environ['PM_HIST_DIR'], pane_id + '.hist')
+    f_in = ''
+    prompt = "Enter filename for pane capture (default:" + f_pane + "): "
+    f_in = input(prompt)
+    if f_in != '':
+        f_pane = f_in
+
+    if os.path.exists(f_pane):
+        dbg.debug("tmx('save-buffer -a ' + " + f_pane + ")")
+        tmx('save-buffer -a ' + f_pane)
+    else:
+        dbg.debug("tmx('save-buffer ' + " + f_pane + ")")
+        tmx('save-buffer ' + f_pane)
+
+# END def capture_pane(pane_id)
+#-----------------------------------------------------------------------
+def choose_pane(d_panes):
+    '''
+    d_panes[pane_id] = {}
+    d_panes[pane_id]['sess'] = sess
+    d_panes[pane_id]['win'] = win_id
+    d_panes[pane_id]['pane_num'] = pane_num
+    d_panes[pane_id]['name'] = host
+    '''
+    d_names = collections.OrderedDict()
+    for pane in d_panes:
+        d_names[pane] = d_panes[pane]['name']
+
+
+# END def choose_pane(d_panes)
+#-----------------------------------------------------------------------
 def get_windows():
     cmd = 'tmux list-windows'
     # This regex can be modified later to obtain window size, etc.
@@ -32,6 +77,7 @@ def get_windows():
     p = subprocess.Popen(l_cmd, stdout=subprocess.PIPE,
                          stderr=subprocess.STDOUT)
     p_out = p.communicate()[0]
+    p_out = p_out.decode('utf-8')
     dbg.info('p_out:' + p_out)
     p_rc = p.returncode
     d_win = {}
@@ -54,12 +100,11 @@ def get_windows():
 # END get_windows
 #-----------------------------------------------------------------------
 def tmx(cmd):
-    sess = os.environ['PM_SESS']
     run = 'tmux ' + cmd
     dbg.info('run:' + run)
     try:
-        os.system(run)
-        return(1)
+        out, err, rc = util.cmd(run)
+        return(out, err ,rc)
     except OSError as e:
         #log.warn("{0}".format(e.strerror))
         dbg.warn("{0}".format(e.strerror))
@@ -71,72 +116,143 @@ def tmx(cmd):
         my_exit(101)
 # END def tmx
 #-----------------------------------------------------------------------
-def get_win_list():
+def get_win_name(new_name):
+    dbg.info("new_name:" + new_name)
+    re_win_names = re.compile('r' + new_name + '_(\d+)')
     d_win = collections.OrderedDict()
-    !!! change the output with -F option
-    re_name_panes_size = re.compile(r'^.*\((\d+)a(.+) panes\) \[(\d{2,3})x(\d+)]')
-    raw_win_list = tmx("list-windows -a -t " + sess)
-    for entry in raw_win_list:
-        sess_id, win_num, win_name_panes_size = entry.split(':')
-        for elem in win_attr_list:
+    #l_win_names = tmx("list-windows -t " + sess + " -F '#{window_name}' -a")
+    l_win_names, err, rc = tmx("list-windows -a -F '#{window_name}'")
+#    dbg.info("l_win_names:" + str(l_win_names))
+#    disp(str(l_win_names))
+    l_win_nums = []
+    name_match = False
+    for name in l_win_names:
+        m = re_win_names.search(name)
+        if m:
+            name_match = True
+            l_win_nums.append(int(m.group(1)))
 
+    if name_match:
+        last_num = max(l_win_nums)
+        new_name = new_name + '_' + str(last_num + 1)
+
+    return(new_name)
+# def get_win_name(new_name)
 #-----------------------------------------------------------------------
-def console(targ=None, user=None):
-    curr_user = os.environ['USER']
-    # !!! Check targ validity
-    if targ is None or targ == '':
-        targ = raw_input('Enter hostname(default:localhost): ')
-        if targ is None or targ == '':
-            targ = os.environ['HOSTNAME']
+def single_rlogin(host, user):
+    win_name = get_win_name(host)
+    win_id = sess + ':' + win_name
+    tmx('new-window -t ' + sess + ' -d -n ' + win_name)
+    pane_num = 0
+    pane_id = win_id + '.' + str(pane_num)
+    tmx('select-pane -t ' + pane_id)
+    rlogin(host, user, pane_id)
+    time.sleep(0.05)
+    sendk(pane_id, 'clear')
+# END def single_rlogin()
+#-----------------------------------------------------------------------
+def multi_rlogin(d_hosts):
+    win_name = get_win_name('multi_rlogin')
+    win_id = sess + ':' + win_name
+    tmx('new-window -t ' + sess + ' -d -n ' + win_name)
+    num_splits = len(d_hosts)
+    dbg.info("num_splits:" + str(num_splits))
+    for pane in range(1, num_splits):
+        tmx('split-window -t ' + sess + ':' + win_name)
 
-        login_cmd = ''
-    if user is None or user == '':
-        user = raw_input('Enter username (default:' + curr_user + '): ')
-        if user is None or user == '':
-            user = curr_user
+    pane_num = 0
+    pane_id = win_id + '.' + str(pane_num)
+    threads = []
+    for host, user in d_hosts.items():
+        tmx('select-pane -t ' + pane_id)
+        d_panes[pane_id] = {}
+        d_panes[pane_id]['sess'] = sess
+        d_panes[pane_id]['win'] = win_id
+        d_panes[pane_id]['pane_num'] = pane_num
+        d_panes[pane_id]['name'] = host
+        t = threading.Thread(target=rlogin, args=(host, user, pane_id))
+        threads.append(t)
+        t.start()
+        time.sleep(0.05)
+        sendk(pane_id, 'clear')
+        pane_num += 1
+        pane_id = win_id + '.' + str(pane_num)
+        tmx('select-pane -t ' + win_id + '.0')
 
+    tmx('resize-pane -Z')
+# END def multi_rlogin()
+#-----------------------------------------------------------------------
+def rlogin(host, user, pane_id):
+    dbg.debug("host:" + host)
+    dbg.debug("user:" + user)
+    dbg.debug("pane_id:" + pane_id)
     login_cmd = '/usr/bin/ssh -tCX -o StrictHostKeyChecking=no '
-    login_cmd += '-l ' + user + ' ' + targ
-
+    login_cmd += '-l ' + user + ' ' + host
     dbg.debug("login_cmd:" + login_cmd)
-    sess = os.environ['PM_SESS']
-    dbg.debug("sess:" + sess)
+    tmx('select-pane -t ' + pane_id)
+    sendk(pane_id, login_cmd + '; tmux wait-for -S ' + host + '_done')
+    tmx('wait-for ' + host + '_done \; capture-pane -S - -E -')
+    f_buff = os.path.join(os.environ['PM_HIST_DIR'], host + '_' + sess + '.hist')
+    if os.path.exists(f_buff):
+        dbg.debug("tmx('save-buffer -a ' + " + f_buff + ")")
+        tmx('save-buffer -a ' + f_buff)
+    else:
+        dbg.debug("tmx('save-buffer ' + " + f_buff + ")")
+        tmx('save-buffer ' + f_buff)
+
+    sendk('exit')
+    win_id, pane_num = pane_id.split('.')
+    tmx('select-pane -t ' + win_id + '.0')
+    tmx('resize-pane -Z')
+# END def rlogin(host, user, pane_id)
+#-----------------------------------------------------------------------
+def console():
+    targ = os.environ['HOSTNAME']
     win = targ.split('.')[0]
     dbg.debug("win:" + win)
     pane = win + '.0'
     dbg.debug("pane:" + pane)
-#    tmx('set-hook -t ' + sess + ' pane-died "select-window -t ' + sess + ':top"')
     tmx('new-window -t ' + sess + ' -d -n ' + win)
 #    tmx('setw -t ' + win + ' remain-on-exit')
     tmx('select-window -t ' + win)
     sendk(pane, login_cmd + ' ; tmux wait-for -S ' + targ + '_done')
     tmx('wait-for ' + targ + '_done ; tmux capture-pane -S - -E -')
-#    tmx('wait-for cmd_done')
-    f_hist = os.environ['PM_HIST_FILE']
-    if os.path.exists(f_hist):
-        dbg.debug("tmx('save-buffer -a ' + " + f_hist + ")")
-        tmx('save-buffer -a ' + f_hist)
+    f_buff = os.path.join(os.environ['PM_HIST_DIR'], host + '_' + sess + '.hist')
+    if os.path.exists(f_buff):
+        dbg.debug("tmx('save-buffer -a ' + " + f_buff + ")")
+        tmx('save-buffer -a ' + f_buff)
     else:
-        dbg.debug("tmx('save-buffer ' + " + f_hist + ")")
-        tmx('save-buffer ' + f_hist)
+        dbg.debug("tmx('save-buffer ' + " + f_buff + ")")
+        tmx('save-buffer ' + f_buff)
 
-#    tmx('clear-history')
     sendk(pane,'exit')
-    tmx("select-window -t " + sess + ":top")
-#    tmx('set -gu remain-on-exit')
 # END def console
 #-----------------------------------------------------------------------
 def disp(msg):
+    msg = str(msg)
     dbg.info('msg:' + msg)
     f_tmp = tempfile.NamedTemporaryFile(mode='w+t')
     f_tmp.write(msg)
     f_tmp.seek(0)
     f_name = f_tmp.name
-    tmx('new-window -d -n disp')
-    tmx('select-window -t disp')
+    win_name = get_win_name('disp')
+    tmx('new-window -d -n ' + win_name)
+    tmx('select-window -t ' + win_name)
     disp_pane = 'disp.0'
     sendk(disp_pane, 'less ' + f_name + ' ; tmux wait-for -S cmd_done')
     tmx('wait-for cmd_done')
     f_tmp.close()
-    tmx('kill-window -t disp')
+    tmx('kill-window -t ' + win_name)
 # END def disp
+#-----------------------------------------------------------------------
+sess = os.environ['CURR_TM_SESS']
+user = os.environ['USER']
+# This dict is used to hold names for panes.
+d_panes = {}
+'''
+EXAMPLE
+d_panes[pane_id]['sess'] = sess
+d_panes[pane_id]['win'] = win_id
+d_panes[pane_id]['pane_num'] = pane_num
+d_panes[pane_id]['name'] = pane_name
+'''

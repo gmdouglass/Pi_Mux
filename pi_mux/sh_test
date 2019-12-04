@@ -1,0 +1,7 @@
+#!/bin/bash
+
+cd $(pwd)
+#files=$(cat MANIFEST)
+files=''
+while read -r line;do files="$files $line";done<MANIFEST
+echo "$files"

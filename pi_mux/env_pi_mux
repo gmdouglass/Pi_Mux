@@ -1,5 +1,11 @@
 #!/bin/bash
 #-----------------------------------------------------------------------
+now=$(date +%Y%m%d%H%M%S)
+sess=${USER}_${now}
+export CURR_TM_SESS="$sess"
+#echo $CURR_TM_SESS
+ENV_STR='CURR_TM_SESS '
+
 # Initialize paths.
 top_dir=$HOME
 
@@ -9,9 +15,8 @@ if [[ ! -d $log_dir ]];then
 fi
 export LOG_DIR="$log_dir"
 #echo $LOG_DIR
-ENV_STR=' LOG_DIR '
+ENV_STR="$ENV_STR LOG_DIR "
 
-#pm_dir="${top_dir}"/src/git/Pi_Mux
 pm_dir="${top_dir}"/src/git/Pi_Mux/pi_mux
 export PM_DIR="$pm_dir"
 #echo $PM_DIR
@@ -44,7 +49,7 @@ ENV_STR="$ENV_STR PM_HIST_DIR"
 pm_hist_file="${pm_hist_dir}"/"${USER}".hist
 export PM_HIST_FILE="$pm_hist_file"
 #echo $PM_HIST_FILE
-ENV_STR="$ENV_STR PM_HIST_FILE"
+ENV_STR="$ENV_STR PM_HIST_FILE "
 
 tmp_dir="${top_dir}"/tmp
 if [[ ! -d $tmp_dir ]];then
@@ -54,10 +59,5 @@ export TMP_DIR="$tmp_dir"
 #echo $TMP_DIR
 ENV_STR="$ENV_STR TMP_DIR"
 
-now=$(date +%Y%m%d%H%M%S)
-sess=${USER}_${now}
-export PM_SESS="$sess"
-#echo $PM_SESS
-PM_ENV_STR="$ENV_STR PM_SESS"
-export PM_ENV_STR="'${PM_ENV_STR}'"
-#echo
+export PM_ENV_STR="' ${ENV_STR}'"
+#echo $PM_ENV_STR

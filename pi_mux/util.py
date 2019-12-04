@@ -1,4 +1,4 @@
-#!/usr/bin/python2
+#!/usr/bin/python3
 #=======================================================================
 import logging
 import os
@@ -16,82 +16,85 @@ dbg = logging.getLogger('dbg.' + __name__)
 # which to choose.
 os.environ['MAN_POSIXLY_CORRECT'] = '1'
 #=======================================================================
-def rem_lin_cmd(cmd, targ, user=None):
+def rcmd(cmd, targ, user=None):
     if user is None:
         user = os.environ['USER']
 
     # !!! Check targ validity
     ssh_cmd = '/usr/bin/ssh -tCX -o StrictHostKeyChecking=no ' + user + '@' + targ + ' '
-    pre_cmd = 'echo -n \\\"DATE: \\\";date \\\"+\%x \%X \%z\\\";'
+    pre_cmd = 'echo -n \\\"DATE: \\\";date \\\"+\%Y/\%m/\%d \%H:\%M:\%S \%Z\\\";'
     pre_cmd += 'echo -n \\\"HOST: \\\";hostname;'
     pre_cmd += 'echo -n \\\"CMD : \\\"' + cmd + ';echo;echo;'
     cmd = ssh_cmd + pre_cmd + cmd
     dbg.debug('cmd:' + cmd)
+    out, err, rc = cmd(cmd)
+    return(out, err, rc)
+# END def rcmd(cmd, targ, user=None)
+#-----------------------------------------------------------------------
+def cmd(cmd):
+    dbg.debug('cmd:' + cmd)
     l_cmd = shlex.split(cmd)
     dbg.debug('l_cmd:' + str(l_cmd))
-    p = subprocess.Popen(l_cmd, stdout=subprocess.PIPE,
+    p = subprocess.Popen(l_cmd, universal_newlines=True,
+                         stdout=subprocess.PIPE,
                          stderr=subprocess.STDOUT)
-    out = p.communicate()[0]
+    out, err = p.communicate()
     dbg.debug('out from p:' + str(out))
     rc = p.returncode
     dbg.debug('rc from p:' + str(rc))
-    return(out, rc)
-# END def rem_lin_cmd
+    return(out, err, rc)
+# END def cmd(cmd)
 #-----------------------------------------------------------------------
-def loc_lin_cmd(cmd):
+def pipeline(cmd):
     dbg.debug('cmd:' + cmd)
-    loc_out = ''
-    loc_out = 'LOC DATE: '
-    loc_cmd = 'date "+%x %X %z"'
-    loc_cmd = shlex.split(loc_cmd)
-    loc = subprocess.Popen(loc_cmd, stdout=subprocess.PIPE,
-                         stderr=subprocess.STDOUT)
-    loc_out += loc.communicate()[0]
-    loc_rc = loc.returncode
-    #---------------------------------------
-    loc_out += 'LOC HOST: ' + os.environ['HOSTNAME']
-    #---------------------------------------
-    loc_out += '\nCMD     : ' + cmd + '\n'
-    loc_out += 'RC      : '
-    dbg.debug('cmd:' + cmd)
-    if '|' in cmd:
-        cmds = cmd.split('|')
-        dbg.debug('cmds:' + str(cmds))
-        last_idx = len(cmds) - 1
-        cmd0 = cmds[0]
-        l_cmd0 = shlex.split(cmd0)
-        dbg.debug('l_cmd0:' + str(l_cmd0))
-        curr_p = subprocess.Popen(l_cmd0, stdout=subprocess.PIPE,
+    cmds = cmd.split('|')
+    dbg.debug('cmds:' + str(cmds))
+    last_idx = len(cmds) - 1
+    cmd0 = cmds[0]
+    l_cmd0 = shlex.split(cmd0)
+    dbg.debug('l_cmd0:' + str(l_cmd0))
+    curr_p = subprocess.Popen(l_cmd0, universal_newlines=True,
+                              stdout=subprocess.PIPE,
+                              stderr=subprocess.STDOUT)
+    prev_p = curr_p
+    idx = 0
+    for piped_cmd in cmds[1:]:
+        dbg.debug('piped_cmd:' + piped_cmd)
+        curr_piped_cmd = shlex.split(piped_cmd)
+        dbg.debug('curr_piped_cmd:' + str(curr_piped_cmd))
+        curr_p = subprocess.Popen(curr_piped_cmd,
+                                  universal_newlines=True,
+                                  stdin=prev_p.stdout,
+                                  stdout=subprocess.PIPE,
                                   stderr=subprocess.STDOUT)
+        prev_p.stdout.close()
         prev_p = curr_p
-        idx = 0
-        for piped_cmd in cmds[1:]:
-            dbg.debug('piped_cmd:' + piped_cmd)
-            curr_piped_cmd = shlex.split(piped_cmd)
-            dbg.debug('curr_piped_cmd:' + str(curr_piped_cmd))
-            curr_p = subprocess.Popen(curr_piped_cmd, stdin=prev_p.stdout,
-                                      stdout=subprocess.PIPE,
-                                      stderr=subprocess.STDOUT)
-            prev_p.stdout.close()
-            prev_p = curr_p
 
-        out = curr_p.communicate()[0]
-        rc = curr_p.returncode
+    out, err = curr_p.communicate()
+    rc = curr_p.returncode
+    return(out, err, rc)
+# END def pipeline(cmd)
+#-----------------------------------------------------------------------
+def loc_cmd(cmd):
+    dbg.debug('cmd:' + cmd)
+    pre_out = ''
+    pre_out = 'LOCAL DATE: '
+    pre_cmd = 'date "+%Y/%m/%d %H:%M:%S %Z"'
+    pre_out, pre_rc = cmd(pre_cmd)
+    #---------------------------------------
+    pre_out += 'LOCAL HOST: ' + os.environ['HOSTNAME']
+    #---------------------------------------
+    pre_out += '\nCMD     : ' + cmd + '\n'
+    pre_out += 'RC      : '
+    if '|' in cmd:
+        out, err, rc = pipeline(cmd)
     else:
-        # Command has no pipe characters
-        l_cmd = shlex.split(cmd)
-        dbg.debug('l_cmd:' + str(l_cmd))
-        p = subprocess.Popen(l_cmd, stdout=subprocess.PIPE,
-                             stderr=subprocess.STDOUT)
-        out = p.communicate()[0]
-        dbg.debug('out from p:' + str(out))
-        rc = p.returncode
-        dbg.debug('rc from p:' + str(rc))
+        out, err, rc = cmd(cmd)
 
-    out = loc_out + str(rc) + '\nOUTPUT  :\n' + out
+    out = pre_out + str(rc) + '\nOUTPUT  :\n' + out
     dbg.debug('out:\n' + out)
     return(out)
-# END def loc_lin_cmd
+# END def loc_cmd
 #-----------------------------------------------------------------------
 def my_exit(ec=None):
     if ec is None:
