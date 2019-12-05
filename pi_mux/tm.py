@@ -35,23 +35,27 @@ def sendk(targ, cmd=None):
         return(0)
 # END def sendk
 #-----------------------------------------------------------------------
-def capture_pane(pane_id):
+def capture_pane(pane_id, f_pane_capture=None):
     tmx('select-pane -t ' + pane_id)
     tmx('capture-pane -S - -E -')
-    f_pane = os.path.join(os.environ['PM_HIST_DIR'], pane_id + '.hist')
-    f_in = ''
-    prompt = "Enter filename for pane capture (default:" + f_pane + "): "
-    f_in = input(prompt)
-    if f_in != '':
-        f_pane = f_in
+    if f_pane_capture is None:
+        f_pane_capture = os.path.join(os.environ['PM_DATA_DIR'],
+                                      pane_id + '.out')
 
-    if os.path.exists(f_pane):
-        dbg.debug("tmx('save-buffer -a ' + " + f_pane + ")")
-        tmx('save-buffer -a ' + f_pane)
+#    f_in = ''
+#    prompt = "Enter filename for pane capture (default:" + f_pane_capture + "): "
+#    f_in = input(prompt)
+#    if f_in != '':
+#        f_pane_capture = f_in
+
+    if os.path.exists(f_pane_capture):
+        dbg.debug("tmx('save-buffer -a ' + " + f_pane_capture + ")")
+        tmx('save-buffer -a ' + f_pane_capture)
     else:
-        dbg.debug("tmx('save-buffer ' + " + f_pane + ")")
-        tmx('save-buffer ' + f_pane)
+        dbg.debug("tmx('save-buffer ' + " + f_pane_capture + ")")
+        tmx('save-buffer ' + f_pane_capture)
 
+    return(f_pane_capture)
 # END def capture_pane(pane_id)
 #-----------------------------------------------------------------------
 def choose_pane(d_panes):
@@ -62,12 +66,76 @@ def choose_pane(d_panes):
     d_panes[pane_id]['pane_num'] = pane_num
     d_panes[pane_id]['name'] = host
     '''
-    d_names = collections.OrderedDict()
-    for pane in d_panes:
-        d_names[pane] = d_panes[pane]['name']
+    idx = 1
+    od_menu_entries = collections.OrderedDict()
+    for pane_id in d_panes:
+        od_menu_entries[str(idx)] = d_panes[pane_id]['name']
 
+    d_menu = {}
+    d_menu['title'] = 'Choose Pane'
+    d_menu['entries'] = od_menu_entries
+    d_menu['prompt'] = "Choose a pane: "
+    done = False
+    while not done:
+        l_choices = util.menu(d_menu)
+        if len(l_choices) > 1:
+            print("Only one choice is allowed.")
+            raw_input("Choose again.")
+            continue
 
+    menu_choice = l_choices[0]
+    name = od_menu_entries[menu_choice]
+    for pane_id in d_panes.keys():
+        if name == d_panes[pane_id]['name']:
+            return(pane_id)
 # END def choose_pane(d_panes)
+#-----------------------------------------------------------------------
+def edit_pane_cap(f_cap=None):
+    sys.os('clear')
+    try:
+        editor = os.environ['EDITOR']
+    except KeyError:
+        editor = '/usr/bin/vim'
+
+    print('The default editor is ' + editor + '.')
+    resp = input('Do you want to choose a different editor? (y/n) ')
+    if resp == 'y':
+        editor = input('Enter the editor you wish to use: ')
+
+    input("Press any key to choose the pane you wish to capture and edit.")
+    pane_id = choose_pane()
+    f_cap = capture_pane(pane_id)
+    win_name = get_win_name('edit_cap')
+    tmx('new-window -d -t ' + sess + ' -n ' + win_name)
+    edit_pane = sess + ':' + win_name + '.0'
+    sendk(edit_pane, 'reset')
+    sendk(edit_pane, '"' + editor + ' ' + f_cap + '"')
+    tmx('select-pane -t ' + edit_pane)
+# END def edit_pane_cap(f_cap=None)
+#-----------------------------------------------------------------------
+def set_status(d_spec=None):
+    if d_spec is None:
+        d_spec = {}
+        d_spec['spec'] = 'default'
+
+    if d_spec['spec'] == 'default':
+        # sess is global
+        d_spec['sess_targ'] = sess
+
+        tmux set -g -t "${CURR_TM_SESS}" status-position top
+        tmux set -g -t "${CURR_TM_SESS}" status-style fg=black
+        tmux set -g -t "${CURR_TM_SESS}" status-justify centre
+        tmux set -g -t "${CURR_TM_SESS}" status-left-length 50
+        tmux set -g -t "${CURR_TM_SESS}" status-right-style "bg=black,fg=white"
+        tmux set -g -t "${CURR_TM_SESS}" status-right-length 10
+
+        tmux bind-key -n F1 new-window -t "${CURR_TM_SESS}" -n HELP help.sh
+        tmux bind-key -n F2 new-window -t "${CURR_TM_SESS}" -n TEST test.py
+        tmux bind-key -n F3 kill-session -t "${CURR_TM_SESS}"
+        tmux bind-key -n F4 choose-window
+        tmux set -g -t "${CURR_TM_SESS}" status-left-style bg=blue,fg=white,bold
+        tmux set -g -t "${CURR_TM_SESS}" status-left "#(echo F1-Help F2-Test F3-Exit F4-Choose Window)"
+        tmux set -g -t "${CURR_TM_SESS}" status-right "#{window_name}"
 #-----------------------------------------------------------------------
 def get_windows():
     cmd = 'tmux list-windows'
@@ -162,6 +230,7 @@ def multi_rlogin(d_hosts):
 
     pane_num = 0
     pane_id = win_id + '.' + str(pane_num)
+    d_panes = {}
     threads = []
     for host, user in d_hosts.items():
         tmx('select-pane -t ' + pane_id)
@@ -245,14 +314,15 @@ def disp(msg):
     tmx('kill-window -t ' + win_name)
 # END def disp
 #-----------------------------------------------------------------------
-sess = os.environ['CURR_TM_SESS']
+try:
+    sess = os.environ['CURR_TM_SESS']
+except:
+    err_msg = "The 'CURR_TM_SESS' environment variable has not "
+    err_msg += "been initialized."
+    log.critical(err_msg)
+    dbg.critical(err_msg)
+    print(err_msg)
+    input('Press any key to continue.')
+    exit(101)
+
 user = os.environ['USER']
-# This dict is used to hold names for panes.
-d_panes = {}
-'''
-EXAMPLE
-d_panes[pane_id]['sess'] = sess
-d_panes[pane_id]['win'] = win_id
-d_panes[pane_id]['pane_num'] = pane_num
-d_panes[pane_id]['name'] = pane_name
-'''

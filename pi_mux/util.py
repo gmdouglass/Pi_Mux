@@ -230,6 +230,6 @@ def menu(d_menu):
                 raw_input('Press "Enter" to continue.')
                 break
         #---------------------------------------
-        return(resp)
+        return(l_choices)
 # END def menu
 #-----------------------------------------------------------------------
