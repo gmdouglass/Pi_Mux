@@ -9,42 +9,17 @@ individual files in /usr/share/doc/*/copyright.
 
 Debian GNU/Linux comes with ABSOLUTELY NO WARRANTY, to the extent
 permitted by applicable law.
-Last login: Tue Dec  3 22:18:20 2019 from 192.168.1.2
+Last login: Sun Dec  8 23:19:32 2019 from 192.168.1.2
 clear
 
 Wi-Fi is currently blocked by rfkill.
 Use raspi-config to set the country before use.
 
 pi@pi1:~ $ clear
-pi@pi1:~ $ uptime
- 22:19:21 up 15 days, 12:02,  3 users,  load average: 0.07, 0.03, 0.00
+pi@pi1:~ $
 pi@pi1:~ $ exit
 logout
 Connection to pi1 closed.
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 

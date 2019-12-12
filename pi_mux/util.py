@@ -157,6 +157,8 @@ def menu(d_menu):
                         lines.
     '''
     #---------------------------------------
+    dbg.info("START def menu(d_menu):")
+    dbg.info("d_menu:" + str(d_menu))
     max_width = 120
     done = False
     menu_keys = d_menu.keys()
@@ -204,6 +206,8 @@ def menu(d_menu):
         key_width = str(len(max(entry_keys, key=len)) + 2)
         spec = '{0:>' + key_width + '}'
         for entry in entry_keys:
+            dbg.info("entry:" + entry)
+            dbg.info("menu_entries[entry]:" + menu_entries[entry])
             entry_line = spec.format(entry) + '. ' + menu_entries[entry] + '\n'
             entry_line = wrapper.wrap(entry_line)[0] + '\n'
             menu_text += entry_line
@@ -211,9 +215,11 @@ def menu(d_menu):
         menu_text += eq_line
         #---------------------------------------
         # Display the menu.
+        dbg.info("(menu_text):\n" + menu_text)
         print(menu_text)
         prompt = wrapper.wrap(d_menu['prompt'])[0]
-        resp = raw_input(prompt)
+        dbg.info("prompt:" + prompt)
+        resp = input(prompt)
         #---------------------------------------
         # Check the response.
         l_choices = []
@@ -227,9 +233,10 @@ def menu(d_menu):
             if not choice in entry_keys:
                 done = False
                 print('  invalid choice:' + choice + '\n')
-                raw_input('Press "Enter" to continue.')
+                input('Press "Enter" to continue.')
                 break
         #---------------------------------------
+        dbg.info("END def menu(d_menu):return(l_choices)")
         return(l_choices)
 # END def menu
 #-----------------------------------------------------------------------

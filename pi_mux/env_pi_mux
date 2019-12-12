@@ -1,63 +1,52 @@
 #!/bin/bash
 #-----------------------------------------------------------------------
-now=$(date +%Y%m%d%H%M%S)
-sess=${USER}_${now}
-export CURR_TM_SESS="$sess"
-#echo $CURR_TM_SESS
-ENV_STR='CURR_TM_SESS '
+export PM_DEBUG=1
+ENV_STR=' PM_DEBUG'
 
-# Initialize paths.
-top_dir=$HOME
+#now=$(date +%Y%m%d%H%M%S)
+#sess=${USER}_${now}
+#export PM_SESS="$sess"
+#ENV_STR="$ENV_STR PM_SESS"
 
-log_dir="${top_dir}/log"
+pm_dir="${HOME}/src/git/Pi_Mux"
+export PM_DIR="$pm_dir"
+ENV_STR="$ENV_STR PM_DIR"
+
+pm_wdir="${HOME}/src/git/Pi_Mux/pi_mux"
+export PM_WDIR="$pm_wdir"
+ENV_STR="$ENV_STR PM_WDIR"
+
+log_dir="${pm_dir}/log"
 if [[ ! -d $log_dir ]];then
     mkdir $log_dir
 fi
-export LOG_DIR="$log_dir"
-#echo $LOG_DIR
-ENV_STR="$ENV_STR LOG_DIR "
+export PM_LOG_DIR="$log_dir"
+ENV_STR="$ENV_STR PM_LOG_DIR "
 
-pm_dir="${top_dir}"/src/git/Pi_Mux/pi_mux
-export PM_DIR="$pm_dir"
-#echo $PM_DIR
-ENV_STR="$ENV_STR PM_DIR"
-
-pm_data_dir="${pm_dir}"/appdata
+pm_data_dir="${pm_wdir}/appdata"
 if [[ ! -d $pm_data_dir ]];then
     mkdir $pm_data_dir
 fi
 export PM_DATA_DIR="$pm_data_dir"
-#echo $PM_DATA_DIR
 ENV_STR="$ENV_STR PM_DATA_DIR"
 
-pm_db_dir="${pm_data_dir}"/db
+pm_db_dir="${pm_data_dir}/db"
 if [[ ! -d $pm_db_dir ]];then
     mkdir $pm_db_dir
 fi
 export PM_DB_DIR="$pm_db_dir"
-#echo $PM_DB_DIR
 ENV_STR="$ENV_STR PM_DB_DIR"
 
-pm_hist_dir="${pm_data_dir}"/hist
-if [[ ! -d $pm_hist_dir ]];then
-    mkdir $pm_hist_dir
-fi
-export PM_HIST_DIR="$pm_hist_dir"
-#echo $PM_HIST_DIR
-ENV_STR="$ENV_STR PM_HIST_DIR"
+pm_db_file="${pm_db_dir}/pm.db"
+export PM_DB_FILE="$pm_db_file"
+ENV_STR="$ENV_STR PM_DB_FILE"
 
-pm_hist_file="${pm_hist_dir}"/"${USER}".hist
-export PM_HIST_FILE="$pm_hist_file"
-#echo $PM_HIST_FILE
-ENV_STR="$ENV_STR PM_HIST_FILE "
-
-tmp_dir="${top_dir}"/tmp
+tmp_dir="${HOME}/tmp"
 if [[ ! -d $tmp_dir ]];then
     mkdir $tmp_dir
 fi
-export TMP_DIR="$tmp_dir"
-#echo $TMP_DIR
-ENV_STR="$ENV_STR TMP_DIR"
+export PM_TMP_DIR="$tmp_dir"
+ENV_STR="$ENV_STR PM_TMP_DIR "
 
 export PM_ENV_STR="' ${ENV_STR}'"
 #echo $PM_ENV_STR

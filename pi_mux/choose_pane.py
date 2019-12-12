@@ -1,11 +1,7 @@
 #!/usr/bin/python3
-#>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-import threading
-import time
+import ast
 import os
 import sys
-#---------------------------------------
-# Application specific
 try:
     sess = os.environ['PM_SESS']
 except KeyError:
@@ -13,18 +9,13 @@ except KeyError:
     print(err_msg)
 
 top_dir = os.environ['PM_DIR']
-log_dir = os.environ['PM_LOG_DIR']
-db_dir = os.environ['PM_DB_DIR']
-pm_db = os.environ['PM_DB_FILE']
-data_dir = os.environ['PM_DATA_DIR']
-tmp_dir = os.environ['PM_TMP_DIR']
 sys.path.insert(1, top_dir)
-import db
 import tm
-import util
-#_______________________________________________________________________
+#---------------------------------------
+log_dir = os.environ['PM_LOG_DIR']
+#---------------------------------------
 # LOGGING CONFIG
-#_______________________________________________________________________
+#---------------------------------------
 import logging
 import logging.handlers
 user = os.environ['USER']
@@ -32,7 +23,7 @@ user = os.environ['USER']
 app_log_format = logging.Formatter('%(asctime)s [%(levelname)-8s] %(threadName)s:%(filename)s\n%(message)s\n')
 log = logging.getLogger()
 log.setLevel(logging.DEBUG)
-f_app_log = os.path.join(log_dir, user + '.log')
+f_app_log = os.path.join(log_dir, user + 'choose_pane.log')
 fh_app_log = logging.handlers.RotatingFileHandler(f_app_log)
 fh_app_log.setLevel('DEBUG')
 fh_app_log.setFormatter(app_log_format)
@@ -50,20 +41,34 @@ dbg_format = logging.Formatter('%(asctime)s [%(levelname)-8s] %(threadName)s:%(f
 dbg = logging.getLogger('dbg')
 dbg.propagate = False
 dbg.setLevel(logging.DEBUG)
-f_dbg_log = os.path.join(log_dir,user + '_dbg.log')
+f_dbg_log = os.path.join(log_dir,user + '_choose_pane_dbg.log')
 fh_dbg = logging.handlers.RotatingFileHandler(f_dbg_log)
 fh_dbg.setLevel('DEBUG')
 fh_dbg.setFormatter(dbg_format)
 dbg.addHandler(fh_dbg)
-#_______________________________________________________________________
-# PROGRAM CONTROL
-#_______________________________________________________________________
-dbg.info("sess:" + sess)
-curr_env, err, rc = tm.tmx('show-environment')
-#tm.sendk(sess + ':0.0', 'tmux show-environment')
-#---------------------------------------
-db.create_pm_db()
-#d_hosts = {'pi1':'pi', 'pi2':'pi', 'pi3':'pi'}
-#tm.multi_rlogin(d_hosts)
-#<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-# EOF
+#========================================================================
+d_panes = {}
+num_args = len(sys.argv)
+if num_args < 2:
+    err_msg = "missing argument"
+    log.critical(err_msg)
+    exit(101)
+elif num_args > 2:
+    err_msg = "too many arguments, extra arguments ignored"
+    log.error(err_msg)
+    dbg.info("d_panes = ast.literal_eval(sys.argv[1])")
+    d_panes = ast.literal_eval(sys.argv[1])
+else:
+    dbg.info("d_panes = ast.literal_eval(sys.argv[1])")
+    d_panes = ast.literal_eval(sys.argv[1])
+
+for pane_id in d_panes:
+    dbg.info("pane_id:" + pane_id)
+    host = d_panes[pane_id]['title']
+    dbg.info("host:" + host)
+
+dbg.info("pane_id = tm.choose_pane(d_panes)")
+pane_id = tm.choose_pane(d_panes)
+dbg.info("pane_id:" + pane_id)
+dbg.info("tm.tmx('select-pane -t ' + pane_id)")
+tm.tmx('select-pane -t ' + pane_id)
