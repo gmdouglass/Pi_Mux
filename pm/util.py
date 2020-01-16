@@ -9,7 +9,7 @@ import sys
 import textwrap
 import time
 log = logging.getLogger(__name__)
-dbg = logging.getLogger('dbg.' + __name__)
+
 #=======================================================================
 # This causes the 'man' command to display the first man page found
 # rather than presenting a list of man pages from all sections from
@@ -26,42 +26,42 @@ def rcmd(cmd, targ, user=None):
     pre_cmd += 'echo -n \\\"HOST: \\\";hostname;'
     pre_cmd += 'echo -n \\\"CMD : \\\"' + cmd + ';echo;echo;'
     cmd = ssh_cmd + pre_cmd + cmd
-    dbg.debug('cmd:' + cmd)
+    log.debug('cmd:' + cmd)
     out, err, rc = cmd(cmd)
     return(out, err, rc)
 # END def rcmd(cmd, targ, user=None)
 #-----------------------------------------------------------------------
 def cmd(cmd):
-    dbg.debug('cmd:' + cmd)
+    log.debug('cmd:' + cmd)
     l_cmd = shlex.split(cmd)
-    dbg.debug('l_cmd:' + str(l_cmd))
+    log.debug('l_cmd:' + str(l_cmd))
     p = subprocess.Popen(l_cmd, universal_newlines=True,
                          stdout=subprocess.PIPE,
                          stderr=subprocess.STDOUT)
     out, err = p.communicate()
-    dbg.debug('out from p:' + str(out))
+    log.debug('out from p:' + str(out))
     rc = p.returncode
-    dbg.debug('rc from p:' + str(rc))
+    log.debug('rc from p:' + str(rc))
     return(out, err, rc)
 # END def cmd(cmd)
 #-----------------------------------------------------------------------
 def pipeline(cmd):
-    dbg.debug('cmd:' + cmd)
+    log.debug('cmd:' + cmd)
     cmds = cmd.split('|')
-    dbg.debug('cmds:' + str(cmds))
+    log.debug('cmds:' + str(cmds))
     last_idx = len(cmds) - 1
     cmd0 = cmds[0]
     l_cmd0 = shlex.split(cmd0)
-    dbg.debug('l_cmd0:' + str(l_cmd0))
+    log.debug('l_cmd0:' + str(l_cmd0))
     curr_p = subprocess.Popen(l_cmd0, universal_newlines=True,
                               stdout=subprocess.PIPE,
                               stderr=subprocess.STDOUT)
     prev_p = curr_p
     idx = 0
     for piped_cmd in cmds[1:]:
-        dbg.debug('piped_cmd:' + piped_cmd)
+        log.debug('piped_cmd:' + piped_cmd)
         curr_piped_cmd = shlex.split(piped_cmd)
-        dbg.debug('curr_piped_cmd:' + str(curr_piped_cmd))
+        log.debug('curr_piped_cmd:' + str(curr_piped_cmd))
         curr_p = subprocess.Popen(curr_piped_cmd,
                                   universal_newlines=True,
                                   stdin=prev_p.stdout,
@@ -76,7 +76,7 @@ def pipeline(cmd):
 # END def pipeline(cmd)
 #-----------------------------------------------------------------------
 def loc_cmd(cmd):
-    dbg.debug('cmd:' + cmd)
+    log.debug('cmd:' + cmd)
     pre_out = ''
     pre_out = 'LOCAL DATE: '
     pre_cmd = 'date "+%Y/%m/%d %H:%M:%S %Z"'
@@ -92,7 +92,7 @@ def loc_cmd(cmd):
         out, err, rc = cmd(cmd)
 
     out = pre_out + str(rc) + '\nOUTPUT  :\n' + out
-    dbg.debug('out:\n' + out)
+    log.debug('out:\n' + out)
     return(out)
 # END def loc_cmd
 #-----------------------------------------------------------------------
@@ -157,8 +157,8 @@ def menu(d_menu):
                         lines.
     '''
     #---------------------------------------
-    dbg.info("START def menu(d_menu):")
-    dbg.info("d_menu:" + str(d_menu))
+    log.info("START def menu(d_menu):")
+    log.info("d_menu:" + str(d_menu))
     max_width = 120
     done = False
     menu_keys = d_menu.keys()
@@ -206,8 +206,8 @@ def menu(d_menu):
         key_width = str(len(max(entry_keys, key=len)) + 2)
         spec = '{0:>' + key_width + '}'
         for entry in entry_keys:
-            dbg.info("entry:" + entry)
-            dbg.info("menu_entries[entry]:" + menu_entries[entry])
+            log.info("entry:" + entry)
+            log.info("menu_entries[entry]:" + menu_entries[entry])
             entry_line = spec.format(entry) + '. ' + menu_entries[entry] + '\n'
             entry_line = wrapper.wrap(entry_line)[0] + '\n'
             menu_text += entry_line
@@ -215,10 +215,10 @@ def menu(d_menu):
         menu_text += eq_line
         #---------------------------------------
         # Display the menu.
-        dbg.info("(menu_text):\n" + menu_text)
+        log.info("(menu_text):\n" + menu_text)
         print(menu_text)
         prompt = wrapper.wrap(d_menu['prompt'])[0]
-        dbg.info("prompt:" + prompt)
+        log.info("prompt:" + prompt)
         resp = input(prompt)
         #---------------------------------------
         # Check the response.
@@ -236,7 +236,7 @@ def menu(d_menu):
                 input('Press "Enter" to continue.')
                 break
         #---------------------------------------
-        dbg.info("END def menu(d_menu):return(l_choices)")
+        log.info("END def menu(d_menu):return(l_choices)")
         return(l_choices)
 # END def menu
 #-----------------------------------------------------------------------

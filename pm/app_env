@@ -1,0 +1,50 @@
+#!/bin/bash
+#<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+app_wdir=$(pwd -P)
+cd "$app_wdir"
+cd ..
+app_dir="$(pwd)"
+cd "$app_wdir"
+app_name=$(basename ${app_dir})
+app_env_name=$(echo "$app_name" | tr '[:lower:]' '[:upper:]')
+
+now=$(date +%Y%m%d%H%M%S)
+unset sess
+sess="${USER}_${now}"
+unset "${app_env_name}_SESS"
+export "${app_env_name}_SESS"="$sess"
+
+notify_email="gmdouglass@gmail.com"
+unset "${app_env_name}_NOTIFY_EMAIL"
+export "${app_env_name}_NOTIFY_EMAIL"="$notify_email"
+
+# NOTE! This assumes the working directory for the application is
+# two subdirectories down from the top of the application directory
+# structure. Application layout may differ.
+top_dir="${app_wdir}/../.."
+
+unset "${app_env_name}_DIR"
+export "${app_env_name}_DIR"="$app_dir"
+
+data_dir="${app_wdir}/appdata"
+unset "${app_env_name}_DATA_DIR"
+export "${app_env_name}_DATA_DIR"="$data_dir"
+if [[ ! -d "$data_dir" ]];then
+    mkdir "$data_dir"
+fi
+
+log_dir="${app_dir}/log"
+unset "${app_env_name}_LOG_DIR"
+export "${app_env_name}_LOG_DIR"="$log_dir"
+if [[ ! -d "$log_dir" ]];then
+    mkdir "$log_dir"
+fi
+
+tmp_dir="${app_dir}/tmp"
+unset "${app_env_name}_TMP_DIR"
+export "${app_env_name}_TMP_DIR"="$tmp_dir"
+if [[ ! -d "$tmp_dir" ]];then
+    mkdir "$tmp_dir"
+fi
+#>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+# EOF

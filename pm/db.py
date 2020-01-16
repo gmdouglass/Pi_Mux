@@ -11,10 +11,19 @@ import stat
 import subprocess
 import logging
 log = logging.getLogger(__name__)
-dbg = logging.getLogger('dbg.' + __name__)
 #-----------------------------------------------------------------------
 # Application specific
+try:
+    top_dir = os.environ['PM_DIR']
+    sys.path.insert(1, os.environ['PM_DIR'])
+except KeyError:
+    err_msg = "'PM_DIR' env var not set!"
+    log.error(err_msg)
+    exit(101)
+
+import gvar
 import util
+user = os.environ['USER']
 #_______________________________________________________________________
 # DEFS
 #_______________________________________________________________________
@@ -23,14 +32,14 @@ def get_conn(db_file):
     '''
     '''
     #---------------------------------------
-    dbg.info("START def get_conn(db_file):")
+    log.info("START def get_conn(db_file):")
     #---------------------------------------
-    dbg.info("db_file:" + db_file)
+    log.info("db_file:" + db_file)
     conn = None
     try:
         conn = sqlite3.connect(db_file)
     except Error as e:
-        dbg.critical(e)
+        log.critical(e)
         exit(101)
     finally:
         if conn:
@@ -38,13 +47,13 @@ def get_conn(db_file):
 
     #---------------------------------------
 
-    dbg.info("END def get_conn(db_file):")
+    log.info("END def get_conn(db_file):")
 #------------------------------------------------------------------------
 def add_act(d_act):
     '''
     '''
     #---------------------------------------
-    dbg.info("START def add_act(text):")
+    log.info("START def add_act(text):")
     #---------------------------------------
     tbl_cols = get_cols('actions')
     val_str = '('
@@ -56,7 +65,7 @@ def add_act(d_act):
     out_lines = out.split('\n')
 #    for line in out_lines:
 
-    conn = get_conn(pm_db_file)
+    conn = get_conn(gvar.pm_db_file)
     cur = conn.cursor()
     cur.execute("""INSERT INTO actions
                    (user,
@@ -77,17 +86,17 @@ def add_act(d_act):
                    )""")
     conn.commit()
     conn.close()
-    dbg.info("END def add_act(text):")
+    log.info("END def add_act(text):")
 #------------------------------------------------------------------------
 def create_pm_db():
     '''
     '''
     #---------------------------------------
-    dbg.info("START def create_pm_db:")
+    log.info("START def create_pm_db:")
     #---------------------------------------
-    dbg.info("conn = get_conn(pm_db_file)")
-    conn = get_conn(pm_db_file)
-    dbg.info("cur = conn.cursor()")
+    log.info("conn = get_conn(gvar.pm_db_file)")
+    conn = get_conn(gvar.pm_db_file)
+    log.info("cur = conn.cursor()")
     cur = conn.cursor()
     sql = 'CREATE TABLE IF NOT EXISTS actions ( '
     sql += 'user TEXT NOT NULL, '
@@ -103,13 +112,13 @@ def create_pm_db():
     sql += 'FOREIGN KEY (cat) REFERENCES act_cat (cat) '
     sql += ');'
     try:
-        dbg.info("cur.execute(CREATE TABLE IF NOT EXISTS actions")
+        log.info("cur.execute(CREATE TABLE IF NOT EXISTS actions")
         cur.execute(sql)
     except Error as e:
-        dbg.critical(e)
+        log.critical(e)
         exit(101)
 
-    dbg.info("cur.execute(CREATE TABLE IF NOT EXISTS cmd")
+    log.info("cur.execute(CREATE TABLE IF NOT EXISTS cmd")
     sql = 'CREATE TABLE IF NOT EXISTS cmd '
     sql += '(cmd TEXT NOT NULL, '
     sql += 'options TEXT NOT NULL, '
@@ -123,72 +132,57 @@ def create_pm_db():
     try:
         cur.execute(sql)
     except Error as e:
-        dbg.critical(e)
+        log.critical(e)
         exit(101)
 
-    dbg.info("cur.execute(CREATE TABLE IF NOT EXISTS act_type")
+    log.info("cur.execute(CREATE TABLE IF NOT EXISTS act_type")
     try:
         cur.execute('''CREATE TABLE IF NOT EXISTS act_type
                  (type TEXT NOT NULL UNIQUE,
                  PRIMARY KEY (type)
                  );''')
     except Error as e:
-        dbg.critical(e)
+        log.critical(e)
         exit(101)
 
-    dbg.info("cur.execute(CREATE TABLE IF NOT EXISTS act_cat")
+    log.info("cur.execute(CREATE TABLE IF NOT EXISTS act_cat")
     try:
         cur.execute('''CREATE TABLE IF NOT EXISTS act_cat
                  (cat TEXT NOT NULL UNIQUE,
                  PRIMARY KEY (cat)
                  );''')
     except Error as e:
-        dbg.critical(e)
+        log.critical(e)
         exit(101)
 
-    dbg.info("cur.execute(CREATE TABLE IF NOT EXISTS cmd_type")
+    log.info("cur.execute(CREATE TABLE IF NOT EXISTS cmd_type")
     try:
         cur.execute('''CREATE TABLE IF NOT EXISTS cmd_type
                  (type TEXT NOT NULL UNIQUE,
                  PRIMARY KEY (type)
                  );''')
     except Error as e:
-        dbg.critical(e)
+        log.critical(e)
         exit(101)
 
-    dbg.info("cur.execute(CREATE TABLE IF NOT EXISTS cmd_cat")
+    log.info("cur.execute(CREATE TABLE IF NOT EXISTS cmd_cat")
     try:
         cur.execute('''CREATE TABLE IF NOT EXISTS cmd_cat
                  (cat TEXT NOT NULL UNIQUE,
                  PRIMARY KEY (cat)
                  );''')
     except Error as e:
-        dbg.critical(e)
+        log.critical(e)
         exit(101)
 
-    dbg.info("conn.commit()")
+    log.info("conn.commit()")
     conn.commit()
-    dbg.info("conn.close()")
+    log.info("conn.close()")
     conn.close()
     #---------------------------------------
-    dbg.info("END def create_pm_db:")
+    log.info("END def create_pm_db:")
 #------------------------------------------------------------------------
 #_______________________________________________________________________
 # END DEFS
 #_______________________________________________________________________
-try:
-    sess = os.environ['PM_SESS']
-except KeyError:
-    err_msg = "'PM_SESS' env var not set!"
-    print(err_msg)
-
-sys.path.insert(1, os.environ['PM_DIR'])
-top_dir = os.environ['PM_DIR']
-log_dir = os.environ['PM_LOG_DIR']
-db_dir = os.environ['PM_DB_DIR']
-pm_db_file = os.environ['PM_DB_FILE']
-pm_db_name = 'pm'
-data_dir = os.environ['PM_DATA_DIR']
-tmp_dir = os.environ['PM_TMP_DIR']
-user = os.environ['USER']
 
